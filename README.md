@@ -1,4 +1,4 @@
 nlp_project
 ===========
 
-Machine Learning Supreme Court Case NLP Parser
+An NLP Parser for U.S. Supreme Court cases.
