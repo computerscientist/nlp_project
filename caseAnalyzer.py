@@ -1,15 +1,40 @@
+import nltk
 import math
 import random
+import urllib
 
-historical_relations_to_look_for=[("civil", "right"), ("worker", "right"),
-                                  ("woman", "right"), ("school", "segregate"),
-                                  ("race", "equal"), ("environment", "regulate"),
-                                  ("business", "regulate"), ("criminal", "right"),
-                                  ("prayer", "school"), ("gay", "right"),
-                                  ("national", "interest"), ("national", "security"),
-                                  ("right", "vote"), ("right", "privacy"),
-                                  ("right", "search"), ("right", "seize"),
+historical_relations_to_look_for=[("civil", "right"),
+                                  ("worker", "right"),
+                                  ("woman", "right"),
+                                  ("school", "segregate"),
+                                  ("race", "equal"),
+                                  ("environment", "regulate"),
+                                  ("business", "regulate"),
+                                  ("criminal", "right"),
+                                  ("prayer", "school"),
+                                  ("gay", "right"),
+                                  ("national", "interest"),
+                                  ("national", "security"),
+                                  ("right", "vote"),
+                                  ("right", "privacy"),
+                                  ("right", "search"),
+                                  ("right", "seize"),
                                   ("woman", "equal")]
+
+
+key_words=["dissent",
+           "reverse",
+           "reverses",
+           "revered",
+           "decide",
+           "decides",
+           "decided",
+           "agree",
+           "agrees",
+           "agreed",
+           "disagree",
+           "disagrees",
+           "disagreed"]
 
 
 """
@@ -21,13 +46,68 @@ Example of related words list:
 """
 
 
-def get_number_of_relations(relation, input_text, max_distance_threshold=5):
+def get_input_text_from_html_page(URL):
+    input_text=""
+    page_response=urllib2.urlopen(URL)
+    page_html=page_response.read()
+    page_response.close()
+
+    # Find start and end of body
+    case_start=page_html.index('U.S. Supreme Court')
+    case_end=page_html.index('<!-- #include virtual =')
+
+    inside_element=False
+    for index in xrange(case_start, case_end):
+        if page_html['index']=='<' and not inside_element:
+            inside_element=True
+        elif page_html['index']=='>' and inside_element:
+            inside_element=False
+        elif not inside_element:
+            input_text+=page_html[index]
+
+    return input_text
+
+
+def get_input_text_with_pos(input_text):
+    tokens = nltk.word_tokenize(input_text)
+    tagged_word_list = nltk.pos_tag(tokens)
+
+    return tagged_word_list
+
+
+def get_number_of_key_word_appearances(input_text, key_word):
+    words=input_text.split()
+    number_of_appearances=0
+
+    for word in words:
+        if word is key_word:
+            number_of_appearances+=1
+
+    return number_of_appearances
+
+
+def get_total_number_of_relations(input_text, max_distance_threshold=5):
+    split_text=input_text.split()
+    total_number_of_relations=0
+
+    for relation in historical_relations_to_look_for:
+        variation_pairs=get_variation_pairs(relation[0], relation[1])
+        for index in range(0, len(input_text)-max_distance_threshold+1):
+            current_subtext=input_text[index:index+max_distance_threshold]
+            for pair in variation_pairs:
+                if pair[0] in current_subtext and pair[1] in current_subtext:
+                    total_number_of_relations+=1
+
+    return total_number_of_relations
+
+        
+def get_number_of_specific_relations(relation, input_text, max_distance_threshold=5):
     number_of_relations=0
     split_text=input_text.split()
+    relation_variation_pairs=get_variation_pairs(relation[0], relation[1])
 
     for index in range(0, len(input_text)-max_distance_threshold+1):
         current_subtext=input_text[index:index+max_distance_threshold]
-        relation_variation_pairs=get_variation_pairs(relation[0], relation[1])
         for pair in relation_variation_pairs:
             if pair[0] in current_subtext and pair[1] in current_subtext:
                 number_of_relations+=1
@@ -36,7 +116,9 @@ def get_number_of_relations(relation, input_text, max_distance_threshold=5):
 
 
 def get_variations(word):
-    if word is "right":
+    if word is "civil":
+        return ["civil"]
+    elif word is "right":
         return ["right", "rights", "liberty", "liberties", "freedom",
                 "freedoms", "choice", "choices"]
     elif word is "worker":
@@ -57,7 +139,7 @@ def get_variations(word):
         return ["business", "businesses", "company", "companies", "corporation",
                 "corporations", "enterprise", "enterprises"]
     elif word is "criminal":
-        return ["criminal", "criminal's", "criminals", "crime", "crimes",
+        return ["criminal", "criminal's", "criminals", "crime", "crimes", "accused"
                 "offense", "offenses", "offender", "offender's", "offenders"]
     elif word is "prayer":
         return ["prayer", "prayers", "pray", "prays", "praying"]
@@ -207,6 +289,22 @@ def calculate_log_probability(word_value_pairs, number_of_words):
     logprob=0
     for word in word_value_pairs:
         logprob+=get_probability_of_word(word, word_value_pairs, number_of_words)
+
+
+def filter_out_pos(tagged_text):
+    tagged_text_list=tagged_text.split()
+    clean_text=""
+    for word in tagged_text_list:
+        """
+        Have word ending in 's? Tagger will label it separately, so must merge
+        it with its parent word just prior.
+        """
+        if word.split("_")[0]=="'s":
+            clean_text=clean_text[:len(clean_text-1)]+word.split("_")[0]+" "
+        else:
+            clean_text+=word.split("_")[0]+" "
+
+    return clean_text
 
 
 if __name__=="__main__":
