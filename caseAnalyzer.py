@@ -19,7 +19,9 @@ historical_relations_to_look_for=[("civil", "right"),
                                   ("right", "privacy"),
                                   ("right", "search"),
                                   ("right", "seize"),
-                                  ("woman", "equal")]
+                                  ("woman", "equal"),
+                                  ("freedom", "speech"),
+                                  ("equal", "pay")]
 
 
 key_words=["dissent",
@@ -44,6 +46,21 @@ Example of related words list:
  "cleanup", "clean", "dirty", "contaminate", "contaminated",
  "habitat", "habitats"]
 """
+
+
+def get_pos_tags_of_grammatical_phrases(phrase_input_file):
+    list_of_tagged_phrases=[]
+    f=open(phrase_input_file, 'r')
+    current_phrase=f.readline()
+
+    while len(current_phrase)>0:
+        tokens = nltk.word_tokenize(current_phrase)
+        tagged = nltk.pos_tag(tokens)
+        list_of_tagged_phrases.append(tagged)
+        current_phrase=f.readline()
+
+    f.close()
+    return list_of_tagged_phrases
 
 
 def get_input_text_from_html_page(URL):
@@ -118,7 +135,7 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
 def get_variations(word):
     if word is "civil":
         return ["civil"]
-    elif word is "right":
+    elif word is "right" or word is "freedom":
         return ["right", "rights", "liberty", "liberties", "freedom",
                 "freedoms", "choice", "choices"]
     elif word is "worker":
@@ -152,7 +169,7 @@ def get_variations(word):
         return ["race", "races", "color", "colors", "creed", "creeds", "racial",
                 "ethnic", "ethnicity", "ethnicities"]
     elif word is "equal":
-        return ["equal", "equality"]
+        return ["equal", "equality", "equivalent", "equivalence"]
     elif word is "gay":
         return ["gay", "homosexual", "homosexuality"]
     elif word is "national":
@@ -175,6 +192,11 @@ def get_variations(word):
         return ["search", "searches", "searching"]
     elif word is "seize":
         return ["seize", "seizes", "seizing", "seizure"]
+    elif word is "speech":
+        return ["speech", "language", "voice", "utterance", "vocalization"]
+    elif word is "pay":
+        return ["pay", "pays", "paying", "compensation", "compensations",
+                "income", "incomes", "wage", "wages"]
     else:
         return [word]
 
@@ -308,4 +330,5 @@ def filter_out_pos(tagged_text):
 
 
 if __name__=="__main__":
-    print decide_additional_training_data_list('Training Cases.txt', 'urls.txt')
+    # print decide_additional_training_data_list('Training Cases.txt', 'urls.txt')
+    print get_pos_tags_of_grammatical_phrases('short grammatical phrases to look for')
