@@ -3,6 +3,7 @@ import math
 import random
 import urllib
 
+
 historical_relations_to_look_for=[("civil", "right"),
                                   ("worker", "right"),
                                   ("woman", "right"),
@@ -162,9 +163,7 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
 
 
 def get_variations(word):
-    if word is "civil":
-        return ["civil"]
-    elif word is "right" or word is "freedom":
+    if word is "right" or word is "freedom":
         return ["right", "rights", "liberty", "liberties", "freedom",
                 "freedoms", "choice", "choices"]
     elif word is "worker":
@@ -185,7 +184,7 @@ def get_variations(word):
         return ["business", "businesses", "company", "companies", "corporation",
                 "corporations", "enterprise", "enterprises"]
     elif word is "criminal":
-        return ["criminal", "criminal's", "criminals", "crime", "crimes", "accused"
+        return ["criminal", "criminal's", "criminals", "crime", "crimes", "accused",
                 "offense", "offenses", "offender", "offender's", "offenders"]
     elif word is "prayer":
         return ["prayer", "prayers", "pray", "prays", "praying"]
@@ -200,7 +199,7 @@ def get_variations(word):
     elif word is "equal":
         return ["equal", "equality", "equivalent", "equivalence"]
     elif word is "gay":
-        return ["gay", "homosexual", "homosexuality"]
+        return ["gay", "gays", "homosexual", "homosexuals", "homosexuality"]
     elif word is "national":
         return ["national", "nationwide", "federal", "nation", "nation's"]
     elif word is "interest":
@@ -222,7 +221,9 @@ def get_variations(word):
     elif word is "seize":
         return ["seize", "seizes", "seizing", "seizure"]
     elif word is "speech":
-        return ["speech", "language", "voice", "utterance", "vocalization"]
+        return ["speech", "language", "voice", "voices", "utter", "utters",
+                "uttering", "uttered", "utterance", "utterances", "vocalization",
+                "vocalizations"]
     elif word is "pay":
         return ["pay", "pays", "paying", "compensation", "compensations",
                 "income", "incomes", "wage", "wages"]
@@ -243,10 +244,10 @@ def get_variation_pairs(first_word, second_word):
 
 
 def print_all_word_variants():
-    word_list=["right", "worker", "woman", "environment", "regulate", "business",
-               "criminal", "prayer", "school", "segregate", "race", "equal", "gay",
-               "national", "interest", "security", "vote", "privacy", "search",
-               "seize"]
+    word_list=["civil", "right", "worker", "woman", "environment", "regulate",
+               "business", "criminal", "prayer", "school", "segregate", "race",
+               "equal", "gay", "national", "interest", "security", "vote",
+               "privacy", "search", "seize", "freedom", "speech", "pay"]
 
     variation_list_string=""
     for word in word_list:
@@ -360,4 +361,5 @@ def filter_out_pos(tagged_text):
 
 if __name__=="__main__":
     # print decide_additional_training_data_list('Training Cases.txt', 'urls.txt')
-    print get_pos_tags_of_grammatical_phrases('short grammatical phrases to look for')
+    # print get_pos_tags_of_grammatical_phrases('short grammatical phrases to look for')
+    print_all_word_variants()
