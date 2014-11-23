@@ -1,5 +1,3 @@
-create methods to look for # of specific grammatical constructs in text
-merge test data into one set
 figure out how to integrate w/liblinear (& integrate in main algorithm)
 ensure year gets labeled w/other features for logistic regression
 fix key word taggings & make them consistent (label w/nltk instead?)

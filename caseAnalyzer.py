@@ -48,6 +48,35 @@ Example of related words list:
 """
 
 
+def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list):
+    number_of_matching_grammatical_constructs=0
+
+    for index in xrange(0, len(labeled_text_list)-len(labeled_grammatical_construct)+1):
+        if labeled_grammatical_construct[0] is labeled_text_list[0]:
+            num_matching_parts=0
+            for grammatical_construct_index in xrange(1, len(labeled_grammatical_construct)):
+                if index+grammatical_construct_index<len(labeled_text_list) and \
+                        labeled_grammatical_construct[grammatical_construct_index] is \
+                        labeled_text_list[index+grammatical_construct_index]:
+                    num_matching_parts+=1
+                else:
+                    break
+
+            if num_matching_parts is len(labeled_grammatical_construct):
+                number_of_matching_grammatical_constructs+=1
+
+    return number_of_matching_grammatical_constructs
+
+
+def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_list, labeled_text_list):
+    total_number_of_grammatical_constructs=0
+    for labeled_grammatical_construct in labeled_grammatical_construct_list:
+        total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct,
+                                                                                     labeled_text_list)
+
+    return total_number_of_grammatical_constructs
+
+
 def get_pos_tags_of_grammatical_phrases(phrase_input_file):
     list_of_tagged_phrases=[]
     f=open(phrase_input_file, 'r')
