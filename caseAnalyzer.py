@@ -133,6 +133,14 @@ def get_number_of_key_word_appearances(input_text, key_word):
     return number_of_appearances
 
 
+def get_total_number_of_key_word_appearanes(input_text):
+    total_number_of_appearances=0
+    for key_word in key_words:
+        total_number_of_appearances+=get_number_of_key_word_appearances(input_text, key_word)
+
+    return total_number_of_appearances
+
+
 def get_total_number_of_relations(input_text, max_distance_threshold=5):
     split_text=input_text.split()
     total_number_of_relations=0
@@ -342,6 +350,8 @@ def calculate_log_probability(word_value_pairs, number_of_words):
     for word in word_value_pairs:
         logprob+=get_probability_of_word(word, word_value_pairs, number_of_words)
 
+    return logprob
+
 
 def filter_out_pos(tagged_text):
     tagged_text_list=tagged_text.split()
@@ -359,7 +369,73 @@ def filter_out_pos(tagged_text):
     return clean_text
 
 
-if __name__=="__main__":
+def form_problem(training_case_file, training_data_features_file):
+    f=open(training_case_file, 'r')
+    g=open(training_data_features_file, 'w')
+
+    current_line=f.readline()
+    while len(current_line)>0:
+        case_url, label=current_line.split(':')
+        input_text=get_input_text_from_html_page(current_line.split(':')[0])
+        data_features_string=get_data_features_string(input_text)
+        g.write("%s %s\n" % (label, data_features_string))
+        current_line=f.readline()
+
+    g.close()
+    f.close()
+
+
+def get_data_features_string(input_text):
+    # get_bag_of_words, filter_bag_of_words_by_threshold, calculate_log_probability
+    data_features_string=""
+    feature_number=1
+    tagged_phrases=get_pos_tags_of_grammatical_phrases('grammatical_phrase_labelings.txt')
+    labeled_text_list=get_input_text_with_pos(input_text)
+
+    # Look at individual grammatical constructs as features
+    for tagged_phrase in tagged_phrases:
+        number_found=get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list)
+        data_features_string+="%d:%d" % (feature_number, number_found)
+        feature_number+=1
+
+    # Look at total number of grammatical constructs as a feature
+    total_number_of_grammatical_constructs=get_total_number_of_grammatical_constructs(tagged_phrases, labeled_text_list)
+    data_features_string+="%d:%d" % (feature_number, total_number_of_grammatical_constructs)
+    feature_number+=1
+
+    # Look at appearances of different key words as featurs
+    for key_word in key_words:
+        number_of_key_word_appearances=get_number_of_key_word_appearances(input_text, key_word)
+        data_features_string+="%d:%d" % (feature_number, number_of_key_word_appearances)
+        feature_number+=1
+
+    # Look at total number of key words as a feature
+    total_number_of_key_words=get_total_number_of_key_word_appearanes(input_text)
+    data_features_string+="%d:%d" % (feature_number, total_number_of_key_words)
+    feature_number+=1
+
+
+    get_total_number_of_relations(input_text, max_distance_threshold=5)
+    get_number_of_specific_relations(relation, input_text, max_distance_threshold=5)
+
+    number_of_words, word_value_pairs=get_bag_of_words(input_text)
+    filtered_bag_of_words=filter_bag_of_words_by_threshold(word_value_pairs, 5)
+    log_probability=log_calculate_log_probability(word_value_pairs, number_of_words)
+    data_features_string+="%d:%d" % (feature_number, log_probability)
+    feature_number+=1
+
+    return data_features_string
+
+
+def main():
     # print decide_additional_training_data_list('Training Cases.txt', 'urls.txt')
     # print get_pos_tags_of_grammatical_phrases('short grammatical phrases to look for')
-    print_all_word_variants()
+    form_problem('Training Cases.txt', 'Training Data Features.txt')
+    labels, instances = svm_read_problem('Training Data Features.txt')
+    prob = problem(labels, instances)
+    model = train(labels, instances, '-s 0')
+    predict(labels, instances, model, "-b 1")
+
+
+if __name__=="__main__":
+    main()
