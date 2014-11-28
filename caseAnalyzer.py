@@ -401,7 +401,6 @@ def form_problem(training_case_file, training_data_features_file):
 
 
 def get_data_features_string(input_text, labeled_input_text):
-    # get_bag_of_words, filter_bag_of_words_by_threshold, calculate_log_probability
     data_features_string=""
     feature_number=1
     tagged_phrases=get_pos_tags_of_grammatical_phrases('short_grammatical_phrases_to_look_for.txt')
