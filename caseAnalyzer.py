@@ -1,5 +1,5 @@
-import nltk
 import math
+import os
 import random
 import urllib
 
@@ -49,6 +49,10 @@ Example of related words list:
 """
 
 
+TEXT_DIVIDING_LABEL="----------------------------------------------------------------------"
+JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
+
+
 def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list):
     number_of_matching_grammatical_constructs=0
 
@@ -72,25 +76,23 @@ def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_
 def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_list, labeled_text_list):
     total_number_of_grammatical_constructs=0
     for labeled_grammatical_construct in labeled_grammatical_construct_list:
-        total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct,
-                                                                                     labeled_text_list)
+        total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct.split(),
+                                                                                     labeled_text_list.split())
 
     return total_number_of_grammatical_constructs
 
 
 def get_pos_tags_of_grammatical_phrases(phrase_input_file):
-    list_of_tagged_phrases=[]
+    tagged_phrases=[]
     f=open(phrase_input_file, 'r')
-    current_phrase=f.readline()
 
-    while len(current_phrase)>0:
-        tokens = nltk.word_tokenize(current_phrase)
-        tagged = nltk.pos_tag(tokens)
-        list_of_tagged_phrases.append(tagged)
-        current_phrase=f.readline()
-
+    current_line=f.readline()
+    while(len(current_line)>0):
+        tagged_phrases.append(current_line)
+        current_line=f.readline()
     f.close()
-    return list_of_tagged_phrases
+
+    return tagged_phrases
 
 
 def get_input_text_from_html_page(URL):
@@ -115,11 +117,17 @@ def get_input_text_from_html_page(URL):
     return input_text
 
 
-def get_input_text_with_pos(input_text):
-    tokens = nltk.word_tokenize(input_text)
-    tagged_word_list = nltk.pos_tag(tokens)
+def get_input_text_with_pos(input_text, model='english-left3words-distsim.tagger'):
+    f=open('input_text.txt', 'w')
+    f.write(input_text)
+    f.close()
 
-    return tagged_word_list
+    tagged_text=subprocess.check_output(['%s/stanford-postagger.sh' % JAVA_TAGGER_BASE_DIRECTORY,
+                                         '%s/models/%s' % (JAVA_TAGGER_BASE_DIRECTORY, model),
+                                         'input_text.txt'])
+    os.rm('input_text.txt')
+
+    return tagged_text
 
 
 def get_number_of_key_word_appearances(input_text, key_word):
@@ -371,35 +379,41 @@ def filter_out_pos(tagged_text):
 
 def form_problem(training_case_file, training_data_features_file):
     f=open(training_case_file, 'r')
-    g=open(training_data_features_file, 'w')
-
     current_line=f.readline()
+    labels=[]
     while len(current_line)>0:
         case_url, label=current_line.split(':')
-        input_text=get_input_text_from_html_page(current_line.split(':')[0])
-        data_features_string=get_data_features_string(input_text)
-        g.write("%s %s\n" % (label, data_features_string))
+        labels.append(label)
+        input_text+="%s\n%s\n" % (get_input_text_from_html_page(case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
-
-    g.close()
     f.close()
 
+    g=open(training_data_features_file, 'w')
+    labeled_input_texts=get_input_text_with_pos(input_text).split("%s_CD" % TEXT_DIVIDING_LABEL)
+    training_case_texts=input_text.split(TEXT_DIVIDING_LABEL)
 
-def get_data_features_string(input_text):
+    for index in len(0, training_case_texts):
+        training_text=training_case_texts[index]
+        labeled_training_text=labeled_input_texts[index]
+        data_features_string=get_data_features_string(training_text, labeled_training_text)
+        g.write("%s %s\n" % (labels.pop(0), data_features_string))
+    g.close()
+
+
+def get_data_features_string(input_text, labeled_input_text):
     # get_bag_of_words, filter_bag_of_words_by_threshold, calculate_log_probability
     data_features_string=""
     feature_number=1
-    tagged_phrases=get_pos_tags_of_grammatical_phrases('grammatical_phrase_labelings.txt')
-    labeled_text_list=get_input_text_with_pos(input_text)
+    tagged_phrases=get_pos_tags_of_grammatical_phrases('short_grammatical_phrases_to_look_for.txt')
 
     # Look at individual grammatical constructs as features
     for tagged_phrase in tagged_phrases:
-        number_found=get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list)
+        number_found=get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_input_text)
         data_features_string+="%d:%d" % (feature_number, number_found)
         feature_number+=1
 
     # Look at total number of grammatical constructs as a feature
-    total_number_of_grammatical_constructs=get_total_number_of_grammatical_constructs(tagged_phrases, labeled_text_list)
+    total_number_of_grammatical_constructs=get_total_number_of_grammatical_constructs(tagged_phrases, labeled_input_text)
     data_features_string+="%d:%d" % (feature_number, total_number_of_grammatical_constructs)
     feature_number+=1
 
@@ -428,8 +442,6 @@ def get_data_features_string(input_text):
 
 
 def main():
-    # print decide_additional_training_data_list('Training Cases.txt', 'urls.txt')
-    # print get_pos_tags_of_grammatical_phrases('short grammatical phrases to look for')
     form_problem('Training Cases.txt', 'Training Data Features.txt')
     labels, instances = svm_read_problem('Training Data Features.txt')
     prob = problem(labels, instances)
