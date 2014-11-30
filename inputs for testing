@@ -1,0 +1,2 @@
+caseAnalyzer.get_input_text_from_html_page('http://caselaw.lp.findlaw.com/scripts/getcase.pl?court=us&vol=370&invol=713')
+The_DT man_NN 's_POS belt_NN

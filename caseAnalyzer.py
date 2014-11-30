@@ -1,7 +1,9 @@
 import math
 import os
 import random
-import urllib
+import re
+import subprocess
+import urllib2
 
 
 historical_relations_to_look_for=[("civil", "right"),
@@ -26,6 +28,7 @@ historical_relations_to_look_for=[("civil", "right"),
 
 
 key_words=["dissent",
+           "dissents"
            "reverse",
            "reverses",
            "revered",
@@ -95,21 +98,46 @@ def get_pos_tags_of_grammatical_phrases(phrase_input_file):
     return tagged_phrases
 
 
+# Tested!
+# TODO: filter out isolated numbers (e.g. references?)
+def filter_html(page_html):
+    filtered_html=page_html
+    filtered_html=filtered_html.replace('\r', ' ')
+    filtered_html=filtered_html.replace('\n', ' ')
+    filtered_html=filtered_html.replace('&nbsp;', ' ')
+    filtered_html=re.sub(r'"', "", filtered_html)
+    filtered_html=re.sub(r"\s+'", " ", filtered_html)
+    filtered_html=re.sub(r"'\s+", " ", filtered_html)
+
+    # Deal with special case of single/double quotes at beginning/end of html text (unlikely, but must be considered)
+    if filtered_html[0]=="'" or filtered_html[0]=='"':
+        filtered_html=filtered_html[1:]
+    if filtered_html[-1]=="'" or filtered_html[-1]=='"':
+        filtered_html=filtered_html[:-1]
+
+    filtered_html=filtered_html.strip()
+    return filtered_html
+
+
+# Tested!
 def get_input_text_from_html_page(URL):
     input_text=""
     page_response=urllib2.urlopen(URL)
     page_html=page_response.read()
     page_response.close()
+    page_html=filter_html(page_html)
 
     # Find start and end of body
-    case_start=page_html.index('U.S. Supreme Court')
-    case_end=page_html.index('<!-- #include virtual =')
+    # "'s in "include virtual..." not included due to filter_html algorithm
+    case_start=page_html.index('include virtual = /scripts/includes/caselawheader.txt -->')
+    case_start+=len("include virtual = /scripts/includes/caselawheader.txt -->")
+    case_end=page_html.index('include virtual = /scripts/includes/caselawfooter.txt -->')
 
     inside_element=False
     for index in xrange(case_start, case_end):
-        if page_html['index']=='<' and not inside_element:
+        if page_html[index]=='<' and not inside_element:
             inside_element=True
-        elif page_html['index']=='>' and inside_element:
+        elif page_html[index]=='>' and inside_element:
             inside_element=False
         elif not inside_element:
             input_text+=page_html[index]
@@ -117,31 +145,37 @@ def get_input_text_from_html_page(URL):
     return input_text
 
 
+# Tested!
 def get_input_text_with_pos(input_text, model='english-left3words-distsim.tagger'):
     f=open('input_text.txt', 'w')
     f.write(input_text)
     f.close()
 
-    tagged_text=subprocess.check_output(['%s/stanford-postagger.sh' % JAVA_TAGGER_BASE_DIRECTORY,
-                                         '%s/models/%s' % (JAVA_TAGGER_BASE_DIRECTORY, model),
-                                         'input_text.txt'])
-    os.rm('input_text.txt')
+    pwd=os.getcwd()
+    os.chdir(JAVA_TAGGER_BASE_DIRECTORY)
+    tagged_text=subprocess.check_output(['./stanford-postagger.sh',
+                                         './models/%s' % (model),
+                                         '../input_text.txt'])
+    os.chdir(pwd)
+    os.remove('input_text.txt')
 
     return tagged_text
 
 
+# Tested!
 def get_number_of_key_word_appearances(input_text, key_word):
     words=input_text.split()
     number_of_appearances=0
 
     for word in words:
-        if word is key_word:
+        if word.lower()==key_word.lower():
             number_of_appearances+=1
 
     return number_of_appearances
 
 
-def get_total_number_of_key_word_appearanes(input_text):
+# Tested!
+def get_total_number_of_key_word_appearances(input_text):
     total_number_of_appearances=0
     for key_word in key_words:
         total_number_of_appearances+=get_number_of_key_word_appearances(input_text, key_word)
@@ -178,6 +212,7 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
     return number_of_relations
 
 
+# Tested!
 def get_variations(word):
     if word is "right" or word is "freedom":
         return ["right", "rights", "liberty", "liberties", "freedom",
@@ -247,6 +282,7 @@ def get_variations(word):
         return [word]
 
 
+# Tested!
 def get_variation_pairs(first_word, second_word):
     first_word_variations=get_variations(first_word)
     second_word_variations=get_variations(second_word)
@@ -259,26 +295,28 @@ def get_variation_pairs(first_word, second_word):
     return variation_pairs
 
 
-def print_all_word_variants():
+# Tested!
+def get_all_word_variants():
     word_list=["civil", "right", "worker", "woman", "environment", "regulate",
                "business", "criminal", "prayer", "school", "segregate", "race",
                "equal", "gay", "national", "interest", "security", "vote",
                "privacy", "search", "seize", "freedom", "speech", "pay"]
 
-    variation_list_string=""
+    word_variation_list=[]
     for word in word_list:
         for variation in get_variations(word):
-            variation_list_string+=variation+" "
+            word_variation_list.append(variation)
 
-    print variation_list_string
+    return word_variation_list
 
-    
+
+# Tested!
 def decide_test_data_list(train_data_file, test_data_file):
     train_data_urls=[]
     f=open(train_data_file)
     current_line=f.readline()
     while len(current_line)>0:
-        train_data_urls.append(current_line.split(":")[0])
+        train_data_urls.append(current_line.rsplit(":", 1)[0])
         current_line=f.readline()
     f.close()
 
@@ -299,12 +337,13 @@ def decide_test_data_list(train_data_file, test_data_file):
 """
 Randomly decide additional training data other than that picked manually.
 """
+# Tested!
 def decide_additional_training_data_list(manual_train_data_file, url_file):
     manual_train_data_urls=[]
     f=open(manual_train_data_file)
     current_line=f.readline()
     while len(current_line)>0:
-        manual_train_data_urls.append(current_line.split(":")[0])
+        manual_train_data_urls.append(current_line.rsplit(":", 1)[0])
         current_line=f.readline()
     f.close()
 
@@ -322,6 +361,7 @@ def decide_additional_training_data_list(manual_train_data_file, url_file):
     return additional_train_data_urls
 
 
+# Tested!
 def get_bag_of_words(text):
     word_value_pairs=dict()
     words=text.split()
@@ -334,17 +374,23 @@ def get_bag_of_words(text):
     return len(words), word_value_pairs
 
 
+# Tested!
 def filter_bag_of_words_by_threshold(word_value_pairs, threshold):
+    filtered_word_value_pairs=dict()
     for word in word_value_pairs:
-        if word_value_pairs[word]<threshold:
-            del word_value_pairs[word]
+        if word_value_pairs[word]>=threshold:
+            filtered_word_value_pairs[word]=word_value_pairs[word]
 
-        
+    return filtered_word_value_pairs
+
+
+# Tested!
+# TODO: small non-zero probabilities for unseen words?
 def get_probability_of_word(word, word_value_pairs, number_of_words):
     if word not in word_value_pairs:
         return 0  # Set to some really small value instead?
     else:
-        return word_value_pairs[word]/number_of_words
+        return word_value_pairs[word]/float(number_of_words)
 
 
 """
@@ -353,14 +399,16 @@ This only calculates the log probability of the words combined: the final
 log probability used elsewhere in the program must also add in the log
 probability of the class (e.g. agree/disagree) that a particular case is in.
 """
+# Tested!
 def calculate_log_probability(word_value_pairs, number_of_words):
     logprob=0
     for word in word_value_pairs:
-        logprob+=get_probability_of_word(word, word_value_pairs, number_of_words)
+        logprob+=math.log(get_probability_of_word(word, word_value_pairs, number_of_words))
 
     return logprob
 
 
+# Tested!
 def filter_out_pos(tagged_text):
     tagged_text_list=tagged_text.split()
     clean_text=""
@@ -370,7 +418,7 @@ def filter_out_pos(tagged_text):
         it with its parent word just prior.
         """
         if word.split("_")[0]=="'s":
-            clean_text=clean_text[:len(clean_text-1)]+word.split("_")[0]+" "
+            clean_text="%s%s " % (clean_text[:len(clean_text)-1], word.split("_")[0])
         else:
             clean_text+=word.split("_")[0]+" "
 
@@ -382,7 +430,7 @@ def form_problem(training_case_file, training_data_features_file):
     current_line=f.readline()
     labels=[]
     while len(current_line)>0:
-        case_url, label=current_line.split(':')
+        case_url, label=current_line.rsplit(':', 1)
         labels.append(label)
         input_text+="%s\n%s\n" % (get_input_text_from_html_page(case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
