@@ -150,6 +150,7 @@ the_DT rights_NNS of_IN prayer_NN
 the_DT national_JJ interest_NN 
 the_DT right_NN to_TO search_VB 
 the_DT power_NN to_TO search_VB 
+the_DT power_NN of_IN search_NN
 the_DT powers_NNS to_TO search_VB 
 the_DT powers_NNS of_IN search_NN 
 the_DT right_NN to_TO seize_VB 

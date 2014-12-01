@@ -56,46 +56,53 @@ TEXT_DIVIDING_LABEL="-----------------------------------------------------------
 JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
 
 
-def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list):
+# Tested!
+def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text):
     number_of_matching_grammatical_constructs=0
+    labeled_grammatical_construct_list=labeled_grammatical_construct.split()
+    labeled_text_list=labeled_text.split()
 
-    for index in xrange(0, len(labeled_text_list)-len(labeled_grammatical_construct)+1):
-        if labeled_grammatical_construct[0] is labeled_text_list[0]:
-            num_matching_parts=0
-            for grammatical_construct_index in xrange(1, len(labeled_grammatical_construct)):
+    for index in xrange(0, len(labeled_text_list)-len(labeled_grammatical_construct_list)+1):
+        if labeled_grammatical_construct_list[0]==labeled_text_list[index]:
+            num_matching_parts=1
+            for grammatical_construct_index in xrange(1, len(labeled_grammatical_construct_list)):
                 if index+grammatical_construct_index<len(labeled_text_list) and \
-                        labeled_grammatical_construct[grammatical_construct_index] is \
+                        labeled_grammatical_construct_list[grammatical_construct_index] == \
                         labeled_text_list[index+grammatical_construct_index]:
                     num_matching_parts+=1
                 else:
                     break
 
-            if num_matching_parts is len(labeled_grammatical_construct):
+            if num_matching_parts==len(labeled_grammatical_construct_list):
                 number_of_matching_grammatical_constructs+=1
 
     return number_of_matching_grammatical_constructs
 
 
+# Tested!
 def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_list, labeled_text_list):
     total_number_of_grammatical_constructs=0
     for labeled_grammatical_construct in labeled_grammatical_construct_list:
-        total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct.split(),
-                                                                                     labeled_text_list.split())
+        if get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list)>0:
+            print labeled_grammatical_construct
+        total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct,
+                                                                                     labeled_text_list)
 
     return total_number_of_grammatical_constructs
 
 
-def get_pos_tags_of_grammatical_phrases(phrase_input_file):
-    tagged_phrases=[]
+# Tested!
+def get_labeled_grammatical_phrases(phrase_input_file):
+    labeled_phrases=[]
     f=open(phrase_input_file, 'r')
 
     current_line=f.readline()
     while(len(current_line)>0):
-        tagged_phrases.append(current_line)
+        labeled_phrases.append(current_line.replace("\n", "").replace("\r", "").strip())
         current_line=f.readline()
     f.close()
 
-    return tagged_phrases
+    return labeled_phrases
 
 
 # Tested!
@@ -183,30 +190,27 @@ def get_total_number_of_key_word_appearances(input_text):
     return total_number_of_appearances
 
 
+# Tested!
 def get_total_number_of_relations(input_text, max_distance_threshold=5):
-    split_text=input_text.split()
     total_number_of_relations=0
-
     for relation in historical_relations_to_look_for:
-        variation_pairs=get_variation_pairs(relation[0], relation[1])
-        for index in range(0, len(input_text)-max_distance_threshold+1):
-            current_subtext=input_text[index:index+max_distance_threshold]
-            for pair in variation_pairs:
-                if pair[0] in current_subtext and pair[1] in current_subtext:
-                    total_number_of_relations+=1
+        total_number_of_relations+=get_number_of_specific_relations(relation, input_text, max_distance_threshold)
 
     return total_number_of_relations
 
-        
+
+# Tested!
 def get_number_of_specific_relations(relation, input_text, max_distance_threshold=5):
     number_of_relations=0
     split_text=input_text.split()
     relation_variation_pairs=get_variation_pairs(relation[0], relation[1])
 
-    for index in range(0, len(input_text)-max_distance_threshold+1):
-        current_subtext=input_text[index:index+max_distance_threshold]
+    for index in range(0, len(split_text)):
+        current_subtext=split_text[index:index+max_distance_threshold]
         for pair in relation_variation_pairs:
-            if pair[0] in current_subtext and pair[1] in current_subtext:
+            if (current_subtext[0]==pair[0] and pair[1] in current_subtext) or \
+                   (current_subtext[0]==pair[1] and pair[0] in current_subtext):
+                print current_subtext, index, pair
                 number_of_relations+=1
 
     return number_of_relations
@@ -214,68 +218,68 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
 
 # Tested!
 def get_variations(word):
-    if word is "right" or word is "freedom":
+    if word=="right" or word=="freedom":
         return ["right", "rights", "liberty", "liberties", "freedom",
                 "freedoms", "choice", "choices"]
-    elif word is "worker":
+    elif word=="worker":
         return ["worker", "workers", "worker's", "work", "working",
                 "employee", "employees", "employee's"]
-    elif word is "woman":
+    elif word=="woman":
         return ["woman", "woman's", "women", "women's", "female", "female's",
                 "females", "females'", "girl", "girl's", "girls", "girls'"]
-    elif word is "environment":
+    elif word=="environment":
         return ["environment", "forest", "forests", "resource", "resources",
                 "habitat", "habitats", "land", "lands", "river", "rivers",
                 "lake", "lakes"]
-    elif word is "regulate":
+    elif word=="regulate":
         return ["regulate", "regulation", "regulates", "regulations", "rule", "rules",
                 "control", "controls", "oversight", "oversee", "oversees", "monitor",
                 "monitors"]
-    elif word is "business":
+    elif word=="business":
         return ["business", "businesses", "company", "companies", "corporation",
                 "corporations", "enterprise", "enterprises"]
-    elif word is "criminal":
+    elif word=="criminal":
         return ["criminal", "criminal's", "criminals", "crime", "crimes", "accused",
                 "offense", "offenses", "offender", "offender's", "offenders"]
-    elif word is "prayer":
+    elif word=="prayer":
         return ["prayer", "prayers", "pray", "prays", "praying"]
-    elif word is "school":
+    elif word=="school":
         return ["school", "schools"]
-    elif word is "segregate":
+    elif word=="segregate":
         return ["segregate", "segregates", "segregation", "separate", "separates",
                 "separation", "separations", "divide", "divides", "division", "divisions"]
-    elif word is "race":
+    elif word=="race":
         return ["race", "races", "color", "colors", "creed", "creeds", "racial",
                 "ethnic", "ethnicity", "ethnicities"]
-    elif word is "equal":
+    elif word=="equal":
         return ["equal", "equality", "equivalent", "equivalence"]
-    elif word is "gay":
+    elif word=="gay":
         return ["gay", "gays", "homosexual", "homosexuals", "homosexuality"]
-    elif word is "national":
+    elif word=="national":
         return ["national", "nationwide", "federal", "nation", "nation's"]
-    elif word is "interest":
+    elif word=="interest":
         return ["interest", "interests", "desire", "desires", "goal", "goals",
                 "matter", "matters", "concern", "concerns", "significant",
                 "significance", "want", "wants"]
-    elif word is "security":
+    elif word=="security":
         return ["security", "secure", "safety", "safe", "protect", "protects",
                 "protection", "protections", "safeguard", "safeguards", "shield",
                 "shields", "defend", "defends", "defense", "surveillance", "guard",
                 "guarding", "guards"]
-    elif word is "vote":
+    elif word=="vote":
         return ["vote", "votes", "voting", "suffrage", "poll", "polls", "ballot",
                 "ballots"]
-    elif word is "privacy":
+    elif word=="privacy":
         return ["privacy", "private", "confidential", "confidentiality"]
-    elif word is "search":
+    elif word=="search":
         return ["search", "searches", "searching"]
-    elif word is "seize":
+    elif word=="seize":
         return ["seize", "seizes", "seizing", "seizure"]
-    elif word is "speech":
+    elif word=="speech":
         return ["speech", "language", "voice", "voices", "utter", "utters",
                 "uttering", "uttered", "utterance", "utterances", "vocalization",
                 "vocalizations"]
-    elif word is "pay":
+    elif word=="pay":
         return ["pay", "pays", "paying", "compensation", "compensations",
                 "income", "incomes", "wage", "wages"]
     else:
@@ -426,6 +430,7 @@ def filter_out_pos(tagged_text):
 
 
 def form_problem(training_case_file, training_data_features_file):
+    input_text=""
     f=open(training_case_file, 'r')
     current_line=f.readline()
     labels=[]
@@ -451,11 +456,11 @@ def form_problem(training_case_file, training_data_features_file):
 def get_data_features_string(input_text, labeled_input_text):
     data_features_string=""
     feature_number=1
-    tagged_phrases=get_pos_tags_of_grammatical_phrases('short_grammatical_phrases_to_look_for.txt')
+    tagged_phrases=get_labeled_grammatical_phrases('java_grammatical_phrase_labelings.txt')
 
     # Look at individual grammatical constructs as features
     for tagged_phrase in tagged_phrases:
-        number_found=get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_input_text)
+        number_found=get_number_of_grammatical_constructs(tagged_phrase, labeled_input_text)
         data_features_string+="%d:%d" % (feature_number, number_found)
         feature_number+=1
 
