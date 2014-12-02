@@ -1,3 +1,5 @@
+import liblinear
+import liblinearutil
 import math
 import os
 import random
@@ -83,8 +85,6 @@ def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_
 def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_list, labeled_text_list):
     total_number_of_grammatical_constructs=0
     for labeled_grammatical_construct in labeled_grammatical_construct_list:
-        if get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text_list)>0:
-            print labeled_grammatical_construct
         total_number_of_grammatical_constructs+=get_number_of_grammatical_constructs(labeled_grammatical_construct,
                                                                                      labeled_text_list)
 
@@ -128,6 +128,7 @@ def filter_html(page_html):
 
 # Tested!
 def get_input_text_from_html_page(URL):
+    print URL
     input_text=""
     page_response=urllib2.urlopen(URL)
     page_html=page_response.read()
@@ -135,10 +136,18 @@ def get_input_text_from_html_page(URL):
     page_html=filter_html(page_html)
 
     # Find start and end of body
-    # "'s in "include virtual..." not included due to filter_html algorithm
-    case_start=page_html.index('include virtual = /scripts/includes/caselawheader.txt -->')
-    case_start+=len("include virtual = /scripts/includes/caselawheader.txt -->")
-    case_end=page_html.index('include virtual = /scripts/includes/caselawfooter.txt -->')
+    if "cgi-bin" not in URL:
+        # "'s in "include virtual..." not included due to filter_html algorithm
+        case_start=page_html.index('include virtual = /scripts/includes/caselawheader.txt -->')
+        case_start+=len("include virtual = /scripts/includes/caselawheader.txt -->")
+        case_end=page_html.index('include virtual = /scripts/includes/caselawfooter.txt -->')
+    else:
+        # "'s in string to look for not included due to filter_html algorithm
+        string_to_look_for="<!------------ END VIEW & PRINT CASES ------------->"
+        #string_to_look_for='Jump to: [<a href=#opinion1>Opinion</a>] [<a href=#dissent1>Dissent</a>]<A name=summary1></A>'
+        case_start=page_html.index(string_to_look_for)
+        case_start+=len(string_to_look_for)
+        case_end=page_html.index('<!-- END LEFT COLUMN -->')
 
     inside_element=False
     for index in xrange(case_start, case_end):
@@ -210,7 +219,6 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
         for pair in relation_variation_pairs:
             if (current_subtext[0]==pair[0] and pair[1] in current_subtext) or \
                    (current_subtext[0]==pair[1] and pair[0] in current_subtext):
-                print current_subtext, index, pair
                 number_of_relations+=1
 
     return number_of_relations
@@ -378,14 +386,17 @@ def get_bag_of_words(text):
     return len(words), word_value_pairs
 
 
-# Tested!
-def filter_bag_of_words_by_threshold(word_value_pairs, threshold):
+
+def filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, threshold):
     filtered_word_value_pairs=dict()
+    filtered_number_of_words=number_of_words
     for word in word_value_pairs:
         if word_value_pairs[word]>=threshold:
             filtered_word_value_pairs[word]=word_value_pairs[word]
+        else:
+            filtered_number_of_words-=word_value_pairs[word]
 
-    return filtered_word_value_pairs
+    return filtered_number_of_words, filtered_word_value_pairs
 
 
 # Tested!
@@ -442,10 +453,15 @@ def form_problem(training_case_file, training_data_features_file):
     f.close()
 
     g=open(training_data_features_file, 'w')
-    labeled_input_texts=get_input_text_with_pos(input_text).split("%s_CD" % TEXT_DIVIDING_LABEL)
+    labeled_input_text=get_input_text_with_pos(input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
+    labeled_input_text=re.sub(r"_\S+", "", labeled_input_text)
+    labeled_input_texts=labeled_input_text.split(TEXT_DIVIDING_LABEL)
     training_case_texts=input_text.split(TEXT_DIVIDING_LABEL)
+    del training_case_texts[100] # Last "training example" in list just whitespace after last text dividing label
+    del labeled_input_texts[100] # Same thing with corresponding labeled version of last "training text"
 
-    for index in len(0, training_case_texts):
+    for index in xrange(0, len(training_case_texts)):
+        print index, len(training_case_texts)
         training_text=training_case_texts[index]
         labeled_training_text=labeled_input_texts[index]
         data_features_string=get_data_features_string(training_text, labeled_training_text)
@@ -461,33 +477,40 @@ def get_data_features_string(input_text, labeled_input_text):
     # Look at individual grammatical constructs as features
     for tagged_phrase in tagged_phrases:
         number_found=get_number_of_grammatical_constructs(tagged_phrase, labeled_input_text)
-        data_features_string+="%d:%d" % (feature_number, number_found)
+        data_features_string+="%d:%d " % (feature_number, number_found)
         feature_number+=1
 
     # Look at total number of grammatical constructs as a feature
     total_number_of_grammatical_constructs=get_total_number_of_grammatical_constructs(tagged_phrases, labeled_input_text)
-    data_features_string+="%d:%d" % (feature_number, total_number_of_grammatical_constructs)
+    data_features_string+="%d:%d " % (feature_number, total_number_of_grammatical_constructs)
     feature_number+=1
 
     # Look at appearances of different key words as featurs
     for key_word in key_words:
         number_of_key_word_appearances=get_number_of_key_word_appearances(input_text, key_word)
-        data_features_string+="%d:%d" % (feature_number, number_of_key_word_appearances)
+        data_features_string+="%d:%d " % (feature_number, number_of_key_word_appearances)
         feature_number+=1
 
     # Look at total number of key words as a feature
-    total_number_of_key_words=get_total_number_of_key_word_appearanes(input_text)
-    data_features_string+="%d:%d" % (feature_number, total_number_of_key_words)
+    total_number_of_key_words=get_total_number_of_key_word_appearances(input_text)
+    data_features_string+="%d:%d " % (feature_number, total_number_of_key_words)
     feature_number+=1
 
+    # Look at number of appearances of individual two-word relations
+    for relation in historical_relations_to_look_for:
+        number_of_relation_appearances=get_number_of_specific_relations(relation, input_text, max_distance_threshold=5)
+        data_features_string+="%d:%d " % (feature_number, number_of_relation_appearances)
+        feature_number+=1
 
-    get_total_number_of_relations(input_text, max_distance_threshold=5)
-    get_number_of_specific_relations(relation, input_text, max_distance_threshold=5)
+    # Look at total number of all relations found as a feature
+    total_number_of_relation_appearances=get_total_number_of_relations(input_text, max_distance_threshold=5)
+    data_features_string+="%d:%d " % (feature_number, total_number_of_relation_appearances)
+    feature_number+=1
 
     number_of_words, word_value_pairs=get_bag_of_words(input_text)
-    filtered_bag_of_words=filter_bag_of_words_by_threshold(word_value_pairs, 5)
-    log_probability=log_calculate_log_probability(word_value_pairs, number_of_words)
-    data_features_string+="%d:%d" % (feature_number, log_probability)
+    filtered_number_of_words, filtered_bag_of_words=filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, 5)
+    log_probability=calculate_log_probability(filtered_bag_of_words, filtered_number_of_words)
+    data_features_string+="%d:%d " % (feature_number, log_probability)
     feature_number+=1
 
     return data_features_string
@@ -495,10 +518,10 @@ def get_data_features_string(input_text, labeled_input_text):
 
 def main():
     form_problem('Training Cases.txt', 'Training Data Features.txt')
-    labels, instances = svm_read_problem('Training Data Features.txt')
-    prob = problem(labels, instances)
-    model = train(labels, instances, '-s 0')
-    predict(labels, instances, model, "-b 1")
+    labels, instances = liblinearutil.svm_read_problem('Training Data Features.txt')
+    prob = liblinear.problem(labels, instances)
+    model = liblinearutil.train(labels, instances, '-s 0')
+    liblinearutil.predict(labels, instances, model, "-b 1")
 
 
 if __name__=="__main__":
