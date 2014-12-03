@@ -56,6 +56,8 @@ Example of related words list:
 
 TEXT_DIVIDING_LABEL="----------------------------------------------------------------------"
 JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
+ALL_CASE_URLS=None
+ALL_CASE_YEARS=None
 
 
 # Tested!
@@ -337,7 +339,7 @@ def decide_test_data_list(train_data_file, test_data_file):
     test_urls=f.read().split()
     f.close()
 
-    while len(test_data_urls)<2000:
+    while len(test_data_urls)<1000:
         URL=test_urls[random.randint(0, len(test_urls)-1)]
         if URL not in train_data_urls:
             test_data_urls.append(URL)
@@ -386,7 +388,7 @@ def get_bag_of_words(text):
     return len(words), word_value_pairs
 
 
-
+# Tested!
 def filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, threshold):
     filtered_word_value_pairs=dict()
     filtered_number_of_words=number_of_words
@@ -440,36 +442,40 @@ def filter_out_pos(tagged_text):
     return clean_text
 
 
-def form_problem(training_case_file, training_data_features_file):
+def form_problem(case_file, features_file):
     input_text=""
-    f=open(training_case_file, 'r')
+    f=open(case_file, 'r')
     current_line=f.readline()
     labels=[]
+    case_urls=[]
     while len(current_line)>0:
         case_url, label=current_line.rsplit(':', 1)
-        labels.append(label)
+        labels.append(label.strip())
+        case_urls.append(case_url)
         input_text+="%s\n%s\n" % (get_input_text_from_html_page(case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
     f.close()
 
-    g=open(training_data_features_file, 'w')
+    g=open(features_file, 'w')
     labeled_input_text=get_input_text_with_pos(input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
     labeled_input_text=re.sub(r"_\S+", "", labeled_input_text)
     labeled_input_texts=labeled_input_text.split(TEXT_DIVIDING_LABEL)
-    training_case_texts=input_text.split(TEXT_DIVIDING_LABEL)
-    del training_case_texts[100] # Last "training example" in list just whitespace after last text dividing label
-    del labeled_input_texts[100] # Same thing with corresponding labeled version of last "training text"
+    case_texts=input_text.split(TEXT_DIVIDING_LABEL)
+    del case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
+    del labeled_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
-    for index in xrange(0, len(training_case_texts)):
-        print index, len(training_case_texts)
-        training_text=training_case_texts[index]
-        labeled_training_text=labeled_input_texts[index]
-        data_features_string=get_data_features_string(training_text, labeled_training_text)
+    for index in xrange(0, len(case_texts)):
+        print "Forming problem: %.2f%%" % ((index*100.0)/len(case_texts))
+        text=case_texts[index]
+        labeled_text=labeled_input_texts[index]
+        corresponding_url=case_urls[index]
+        data_features_string=get_data_features_string(text, labeled_text, corresponding_url)
         g.write("%s %s\n" % (labels.pop(0), data_features_string))
     g.close()
 
 
-def get_data_features_string(input_text, labeled_input_text):
+# Tested!
+def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     data_features_string=""
     feature_number=1
     tagged_phrases=get_labeled_grammatical_phrases('java_grammatical_phrase_labelings.txt')
@@ -507,6 +513,12 @@ def get_data_features_string(input_text, labeled_input_text):
     data_features_string+="%d:%d " % (feature_number, total_number_of_relation_appearances)
     feature_number+=1
 
+    # Add year of case as a feature
+    year_of_case=get_year_of_case(corresponding_url)
+    data_features_string+="%d:%d " % (feature_number, year_of_case)
+    feature_number+=1
+
+    # Look at bag of words stuff
     number_of_words, word_value_pairs=get_bag_of_words(input_text)
     filtered_number_of_words, filtered_bag_of_words=filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, 5)
     log_probability=calculate_log_probability(filtered_bag_of_words, filtered_number_of_words)
@@ -516,12 +528,46 @@ def get_data_features_string(input_text, labeled_input_text):
     return data_features_string
 
 
+# Tested!
+def get_year_of_case(case_url):
+    global ALL_CASE_YEARS, ALL_CASE_URLS
+
+    return int(ALL_CASE_YEARS[ALL_CASE_URLS.index(case_url)])
+
+
+# Tested!
+def get_all_case_urls():
+    f=open('dissent/urls.txt', 'r')
+    url_list=f.read().split()
+    f.close()
+
+    return url_list
+
+
+# Tested!
+def get_list_of_case_years():
+    f=open('dissent/years.txt', 'r')
+    year_list=f.read().split()
+    f.close()
+
+    return year_list
+
+
 def main():
+    global ALL_CASE_YEARS, ALL_CASE_URLS
+    ALL_CASE_URLS=get_all_case_urls()
+    ALL_CASE_YEARS=get_list_of_case_years()
+
+    # Form model using training data
     form_problem('Training Cases.txt', 'Training Data Features.txt')
-    labels, instances = liblinearutil.svm_read_problem('Training Data Features.txt')
-    prob = liblinear.problem(labels, instances)
-    model = liblinearutil.train(labels, instances, '-s 0')
-    liblinearutil.predict(labels, instances, model, "-b 1")
+    training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
+    prob = liblinear.problem(training_labels, training_instances)
+    model = liblinearutil.train(training_labels, training_instances, '-s 0')
+
+    # Actually test algorithm on test data
+    form_problem('Test Cases.txt', 'Test Data Features.txt')
+    test_labels, test_instances = liblinearutil.svm_read_problem('Test Data Features.txt')
+    liblinearutil.predict(test_labels, test_instances, model, "-b 1")
 
 
 if __name__=="__main__":

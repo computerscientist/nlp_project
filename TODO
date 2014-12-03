@@ -1,3 +1,2 @@
 figure out how to integrate w/liblinear (& integrate in main algorithm)
-ensure year gets labeled w/other features for logistic regression
 test/debug general algorithm in main method!
