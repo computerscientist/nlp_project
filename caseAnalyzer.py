@@ -54,7 +54,7 @@ Example of related words list:
 """
 
 
-TEXT_DIVIDING_LABEL="----------------------------------------------------------------------"
+TEXT_DIVIDING_LABEL="--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
 ALL_CASE_URLS=None
 ALL_CASE_YEARS=None
@@ -138,12 +138,12 @@ def get_input_text_from_html_page(URL):
     page_html=filter_html(page_html)
 
     # Find start and end of body
-    if "cgi-bin" not in URL:
+    try:
         # "'s in "include virtual..." not included due to filter_html algorithm
         case_start=page_html.index('include virtual = /scripts/includes/caselawheader.txt -->')
         case_start+=len("include virtual = /scripts/includes/caselawheader.txt -->")
         case_end=page_html.index('include virtual = /scripts/includes/caselawfooter.txt -->')
-    else:
+    except ValueError:
         # "'s in string to look for not included due to filter_html algorithm
         string_to_look_for="<!------------ END VIEW & PRINT CASES ------------->"
         #string_to_look_for='Jump to: [<a href=#opinion1>Opinion</a>] [<a href=#dissent1>Dissent</a>]<A name=summary1></A>'
@@ -456,14 +456,18 @@ def form_problem(case_file, features_file):
         current_line=f.readline()
     f.close()
 
-    g=open(features_file, 'w')
     labeled_input_text=get_input_text_with_pos(input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
-    labeled_input_text=re.sub(r"_\S+", "", labeled_input_text)
+    labeled_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_input_text)
     labeled_input_texts=labeled_input_text.split(TEXT_DIVIDING_LABEL)
+    for current_labeled_input_text in labeled_input_texts:
+        current_labeled_input_text=current_labeled_input_text.strip()
     case_texts=input_text.split(TEXT_DIVIDING_LABEL)
+    for case_text in case_texts:
+        case_text=case_text.strip()
     del case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
     del labeled_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
+    g=open(features_file, 'w')
     for index in xrange(0, len(case_texts)):
         print "Forming problem: %.2f%%" % ((index*100.0)/len(case_texts))
         text=case_texts[index]
@@ -565,7 +569,7 @@ def main():
     model = liblinearutil.train(training_labels, training_instances, '-s 0')
 
     # Actually test algorithm on test data
-    form_problem('Test Cases.txt', 'Test Data Features.txt')
+    form_problem('Test Cases Labeled.txt', 'Test Data Features.txt')
     test_labels, test_instances = liblinearutil.svm_read_problem('Test Data Features.txt')
     liblinearutil.predict(test_labels, test_instances, model, "-b 1")
 
