@@ -1,3 +1,4 @@
+import bisect
 import liblinear
 import liblinearutil
 import math
@@ -58,6 +59,8 @@ TEXT_DIVIDING_LABEL="-----------------------------------------------------------
 JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
 ALL_CASE_URLS=None
 ALL_CASE_YEARS=None
+LIST_OF_APPEARING_WORD_TUPLES=[]
+SET_OF_APPEARING_WORDS=set()
 
 
 # Tested!
@@ -107,13 +110,18 @@ def get_labeled_grammatical_phrases(phrase_input_file):
     return labeled_phrases
 
 
-# Tested!
-# TODO: filter out isolated numbers (e.g. references?)
 def filter_html(page_html):
     filtered_html=page_html
+
+    # Eliminate special whitespace
     filtered_html=filtered_html.replace('\r', ' ')
     filtered_html=filtered_html.replace('\n', ' ')
     filtered_html=filtered_html.replace('&nbsp;', ' ')
+
+    # Eliminate punctuation and certain special characters
+    filtered_html=re.sub(r"[.!:;?(){}<>\[\],+-/\|~_@^\\]", " ", filtered_html)
+
+    # Eliminate quotation marks
     filtered_html=re.sub(r'"', "", filtered_html)
     filtered_html=re.sub(r"\s+'", " ", filtered_html)
     filtered_html=re.sub(r"'\s+", " ", filtered_html)
@@ -123,6 +131,9 @@ def filter_html(page_html):
         filtered_html=filtered_html[1:]
     if filtered_html[-1]=="'" or filtered_html[-1]=='"':
         filtered_html=filtered_html[:-1]
+
+    # Eliminate isolated numbers (to get rid of references) for analysis
+    filtered_html=re.sub(r"\s+\d+\s+", " ", filtered_html)
 
     filtered_html=filtered_html.strip()
     return filtered_html
@@ -375,17 +386,27 @@ def decide_additional_training_data_list(manual_train_data_file, url_file):
     return additional_train_data_urls
 
 
-# Tested!
+def find_all_appearing_words(combined_texts):
+    global LIST_OF_APPEARING_WORD_TUPLES, SET_OF_APPEARING_WORDS, TEXT_DIVIDING_LABEL
+    combined_texts_split=combined_texts.split()
+
+    for word in combined_texts_split():
+        if word!=TEXT_DIVIDING_LABEL and word not in SET_OF_APPEARING_WORDS:
+            SET_OF_APPEARING_WORDS.add(word)    
+            LIST_OF_APPEARING_WORD_TUPLES.append((word, 0))
+
+    LIST_OF_APPEARING_WORD_TUPLES.sort()
+
+
 def get_bag_of_words(text):
-    word_value_pairs=dict()
+    global SET_OF_APPEARING_WORDS
+    word_value_pair_list=LIST_OF_APPEARING_WORD_TUPLES.copy()
     words=text.split()
     for word in words:
-        if word not in word_value_pairs:
-            word_value_pairs[word]=1
-        else:
-            word_value_pairs[word]+=1
+        index_of_word=bisect.bisect_left(word_value_pair_list, (word, 0))
+        word_value_pair_list[index_of_word][1]+=1
 
-    return len(words), word_value_pairs
+    return word_value_pair_list
 
 
 # Tested!
@@ -399,30 +420,6 @@ def filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, threshol
             filtered_number_of_words-=word_value_pairs[word]
 
     return filtered_number_of_words, filtered_word_value_pairs
-
-
-# Tested!
-# TODO: small non-zero probabilities for unseen words?
-def get_probability_of_word(word, word_value_pairs, number_of_words):
-    if word not in word_value_pairs:
-        return 0  # Set to some really small value instead?
-    else:
-        return word_value_pairs[word]/float(number_of_words)
-
-
-"""
-Calculate the combined log probability of all words in a piece of text.
-This only calculates the log probability of the words combined: the final
-log probability used elsewhere in the program must also add in the log
-probability of the class (e.g. agree/disagree) that a particular case is in.
-"""
-# Tested!
-def calculate_log_probability(word_value_pairs, number_of_words):
-    logprob=0
-    for word in word_value_pairs:
-        logprob+=math.log(get_probability_of_word(word, word_value_pairs, number_of_words))
-
-    return logprob
 
 
 # Tested!
@@ -442,43 +439,85 @@ def filter_out_pos(tagged_text):
     return clean_text
 
 
-def form_problem(case_file, features_file):
-    input_text=""
-    f=open(case_file, 'r')
+def form_problem(training_case_file, training_features_file, test_case_file, test_features_file):
+    global SET_OF_APPEARING_WORDS
+    training_input_text=""
+    test_input_text=""
+
+    # Get all training data text combined
+    f=open(training_case_file, 'r')
     current_line=f.readline()
-    labels=[]
-    case_urls=[]
+    training_labels=[]
+    training_case_urls=[]
     while len(current_line)>0:
-        case_url, label=current_line.rsplit(':', 1)
-        labels.append(label.strip())
-        case_urls.append(case_url)
-        input_text+="%s\n%s\n" % (get_input_text_from_html_page(case_url), TEXT_DIVIDING_LABEL)
+        training_case_url, training_label=current_line.rsplit(':', 1)
+        training_labels.append(training_label.strip())
+        training_case_urls.append(training_case_url)
+        training_input_text+="%s\n%s\n" % (get_input_text_from_html_page(training_case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
     f.close()
 
-    labeled_input_text=get_input_text_with_pos(input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
-    labeled_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_input_text)
-    labeled_input_texts=labeled_input_text.split(TEXT_DIVIDING_LABEL)
-    for current_labeled_input_text in labeled_input_texts:
-        current_labeled_input_text=current_labeled_input_text.strip()
-    case_texts=input_text.split(TEXT_DIVIDING_LABEL)
-    for case_text in case_texts:
-        case_text=case_text.strip()
-    del case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
-    del labeled_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
+    # Get all test data text combined
+    f=open(test_case_file, 'r')
+    current_line=f.readline()
+    test_labels=[]
+    test_case_urls=[]
+    while len(current_line)>0:
+        test_case_url, test_label=current_line.rsplit(':', 1)
+        test_labels.append(test_label.strip())
+        test_case_urls.append(test_case_url)
+        test_input_text+="%s\n%s\n" % (get_input_text_from_html_page(training_case_url), TEXT_DIVIDING_LABEL)
+        current_line=f.readline()
+    f.close()
+
+    # Get total bag of appearing words
+    find_all_appearing_words(training_input_text+"\n"+test_input_text)
+
+    # Get data features for training data
+    labeled_training_input_text=get_input_text_with_pos(training_input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
+    labeled_training_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_training_input_text)
+    labeled_training_input_texts=labeled_training_input_text.split(TEXT_DIVIDING_LABEL)
+    for current_labeled_training_input_text in labeled_training_input_texts:
+        current_labeled_training_input_text=current_labeled_training_input_text.strip()
+    training_case_texts=training_input_text.split(TEXT_DIVIDING_LABEL)
+    for training_case_text in training_case_texts:
+        training_case_text=training_case_text.strip()
+    del training_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
+    del labeled_training_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
     g=open(features_file, 'w')
-    for index in xrange(0, len(case_texts)):
-        print "Forming problem: %.2f%%" % ((index*100.0)/len(case_texts))
-        text=case_texts[index]
-        labeled_text=labeled_input_texts[index]
-        corresponding_url=case_urls[index]
-        data_features_string=get_data_features_string(text, labeled_text, corresponding_url)
+    for index in xrange(0, len(training_case_texts)):
+        print "Forming training features: %.2f%%" % ((index*100.0)/len(case_texts))
+        training_text=training_case_texts[index]
+        labeled_training_text=labeled_training_input_texts[index]
+        corresponding_url=training_case_urls[index]
+        data_features_string=get_data_features_string(training_text, labeled_training_text, corresponding_url)
+        g.write("%s %s\n" % (labels.pop(0), data_features_string))
+    g.close()
+
+    # Get data features for test data now...
+    labeled_test_input_text=get_input_text_with_pos(test_input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
+    labeled_test_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_test_input_text)
+    labeled_test_input_texts=labeled_test_input_text.split(TEXT_DIVIDING_LABEL)
+    for current_labeled_test_input_text in labeled_test_input_texts:
+        current_labeled_test_input_text=current_labeled_test_input_text.strip()
+    test_case_texts=test_input_text.split(TEXT_DIVIDING_LABEL)
+    for test_case_text in test_case_texts:
+        test_case_text=test_case_text.strip()
+    del test_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
+    del labeled_test_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
+
+    g=open(features_file, 'w')
+    for index in xrange(0, len(test_case_texts)):
+        print "Forming test features: %.2f%%" % ((index*100.0)/len(case_texts))
+        test_text=test_case_texts[index]
+        labeled_test_text=labeled_test_input_texts[index]
+        corresponding_url=test_case_urls[index]
+        data_features_string=get_data_features_string(test_text, labeled_test_text, corresponding_url)
         g.write("%s %s\n" % (labels.pop(0), data_features_string))
     g.close()
 
 
-# Tested!
 def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     data_features_string=""
     feature_number=1
@@ -523,11 +562,10 @@ def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     feature_number+=1
 
     # Look at bag of words stuff
-    number_of_words, word_value_pairs=get_bag_of_words(input_text)
-    filtered_number_of_words, filtered_bag_of_words=filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, 5)
-    log_probability=calculate_log_probability(filtered_bag_of_words, filtered_number_of_words)
-    data_features_string+="%d:%d " % (feature_number, log_probability)
-    feature_number+=1
+    word_value_pair_list=get_bag_of_words(input_text) # Assume sorted in alphabetical order
+    for word_value_pair in word_value_pair_list:
+        data_features_string+="%d:%d " % (feature_number, word_value_pair[1])
+        feature_number+=1
 
     return data_features_string
 
@@ -535,7 +573,6 @@ def get_data_features_string(input_text, labeled_input_text, corresponding_url):
 # Tested!
 def get_year_of_case(case_url):
     global ALL_CASE_YEARS, ALL_CASE_URLS
-
     return int(ALL_CASE_YEARS[ALL_CASE_URLS.index(case_url)])
 
 
@@ -563,15 +600,14 @@ def main():
     ALL_CASE_YEARS=get_list_of_case_years()
 
     # Form model using training data
-    form_problem('Training Cases.txt', 'Training Data Features.txt')
-    training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
+    form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
+    """training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
     prob = liblinear.problem(training_labels, training_instances)
     model = liblinearutil.train(training_labels, training_instances, '-s 0')
 
     # Actually test algorithm on test data
-    form_problem('Test Cases Labeled.txt', 'Test Data Features.txt')
     test_labels, test_instances = liblinearutil.svm_read_problem('Test Data Features.txt')
-    liblinearutil.predict(test_labels, test_instances, model, "-b 1")
+    liblinearutil.predict(test_labels, test_instances, model, "-b 1")"""
 
 
 if __name__=="__main__":
