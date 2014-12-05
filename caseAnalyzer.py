@@ -486,44 +486,33 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     f=open('c.txt', 'w')
     f.write(training_input_text)
     f.close()
-    labeled_training_input_text=get_input_text_with_pos(training_input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
-    labeled_training_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_training_input_text)
-    labeled_training_input_texts=labeled_training_input_text.split(TEXT_DIVIDING_LABEL)
-    for current_labeled_training_input_text in labeled_training_input_texts:
-        current_labeled_training_input_text=current_labeled_training_input_text.strip()
+    
     training_case_texts=training_input_text.split(TEXT_DIVIDING_LABEL)
     for training_case_text in training_case_texts:
         training_case_text=training_case_text.strip()
     del training_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
-    del labeled_training_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
     g=open(training_features_file, 'w')
     for index in xrange(0, len(training_case_texts)):
-        print "Forming training features: %.2f%%" % ((index*100.0)/len(case_texts))
+        print "Forming training features: %.2f%%" % ((index*100.0)/len(training_case_texts))
         training_text=training_case_texts[index]
-        labeled_training_text=labeled_training_input_texts[index]
+        labeled_training_text=get_input_text_with_pos(training_text)
         corresponding_url=training_case_urls[index]
         data_features_string=get_data_features_string(training_text, labeled_training_text, corresponding_url)
         g.write("%s %s\n" % (training_labels.pop(0), data_features_string))
     g.close()
 
     # Get data features for test data now...
-    labeled_test_input_text=get_input_text_with_pos(test_input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
-    labeled_test_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_test_input_text)
-    labeled_test_input_texts=labeled_test_input_text.split(TEXT_DIVIDING_LABEL)
-    for current_labeled_test_input_text in labeled_test_input_texts:
-        current_labeled_test_input_text=current_labeled_test_input_text.strip()
     test_case_texts=test_input_text.split(TEXT_DIVIDING_LABEL)
     for test_case_text in test_case_texts:
         test_case_text=test_case_text.strip()
     del test_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
-    del labeled_test_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
     g=open(test_features_file, 'w')
     for index in xrange(0, len(test_case_texts)):
-        print "Forming test features: %.2f%%" % ((index*100.0)/len(case_texts))
+        print "Forming test features: %.2f%%" % ((index*100.0)/len(test_case_texts))
         test_text=test_case_texts[index]
-        labeled_test_text=labeled_test_input_texts[index]
+        labeled_test_text=get_input_text_with_pos(test_text)
         corresponding_url=test_case_urls[index]
         data_features_string=get_data_features_string(test_text, labeled_test_text, corresponding_url)
         g.write("%s %s\n" % (test_labels.pop(0), data_features_string))
@@ -578,6 +567,7 @@ def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     for word_value_pair in word_value_pair_list:
         data_features_string+="%d:%d " % (feature_number, word_value_pair[1])
         feature_number+=1
+    del word_value_pair_list
 
     return data_features_string
 
@@ -612,8 +602,7 @@ def main():
     ALL_CASE_YEARS=get_list_of_case_years()
 
     # Form model using training data
-    #form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
-    form_problem('a.txt', 'Training Data Features.txt', 'b.txt', 'Test Data Features.txt')
+    form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
     training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
     prob = liblinear.problem(training_labels, training_instances)
     model = liblinearutil.train(training_labels, training_instances, '-s 0')
