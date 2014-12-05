@@ -59,8 +59,8 @@ TEXT_DIVIDING_LABEL="-----------------------------------------------------------
 JAVA_TAGGER_BASE_DIRECTORY='stanford-postagger-2014-08-27'
 ALL_CASE_URLS=None
 ALL_CASE_YEARS=None
-LIST_OF_APPEARING_WORD_TUPLES=[]
-SET_OF_APPEARING_WORDS=set()
+LIST_OF_APPEARING_WORD_TUPLES=None
+SET_OF_APPEARING_WORDS=None
 
 
 # Tested!
@@ -110,6 +110,7 @@ def get_labeled_grammatical_phrases(phrase_input_file):
     return labeled_phrases
 
 
+# Tested!
 def filter_html(page_html):
     filtered_html=page_html
 
@@ -119,7 +120,7 @@ def filter_html(page_html):
     filtered_html=filtered_html.replace('&nbsp;', ' ')
 
     # Eliminate punctuation and certain special characters
-    filtered_html=re.sub(r"[.!:;?(){}<>\[\],+-/\|~_@^\\]", " ", filtered_html)
+    filtered_html=re.sub(r"[.!:;?(){}\[\],\|~_@^\\]", " ", filtered_html)
 
     # Eliminate quotation marks
     filtered_html=re.sub(r'"', "", filtered_html)
@@ -151,16 +152,16 @@ def get_input_text_from_html_page(URL):
     # Find start and end of body
     try:
         # "'s in "include virtual..." not included due to filter_html algorithm
-        case_start=page_html.index('include virtual = /scripts/includes/caselawheader.txt -->')
-        case_start+=len("include virtual = /scripts/includes/caselawheader.txt -->")
-        case_end=page_html.index('include virtual = /scripts/includes/caselawfooter.txt -->')
+        case_start=page_html.index('#include virtual = /scripts/includes/caselawheader txt')
+        case_start+=len("#include virtual = /scripts/includes/caselawheader txt")
+        case_end=page_html.index('#include virtual = /scripts/includes/caselawfooter txt')
     except ValueError:
         # "'s in string to look for not included due to filter_html algorithm
-        string_to_look_for="<!------------ END VIEW & PRINT CASES ------------->"
+        string_to_look_for="< ------------ END VIEW & PRINT CASES ------------->"
         #string_to_look_for='Jump to: [<a href=#opinion1>Opinion</a>] [<a href=#dissent1>Dissent</a>]<A name=summary1></A>'
         case_start=page_html.index(string_to_look_for)
         case_start+=len(string_to_look_for)
-        case_end=page_html.index('<!-- END LEFT COLUMN -->')
+        case_end=page_html.index('< -- END LEFT COLUMN -->')
 
     inside_element=False
     for index in xrange(case_start, case_end):
@@ -386,11 +387,14 @@ def decide_additional_training_data_list(manual_train_data_file, url_file):
     return additional_train_data_urls
 
 
+# Tested!
 def find_all_appearing_words(combined_texts):
     global LIST_OF_APPEARING_WORD_TUPLES, SET_OF_APPEARING_WORDS, TEXT_DIVIDING_LABEL
+    LIST_OF_APPEARING_WORD_TUPLES=[]
+    SET_OF_APPEARING_WORDS=set()
     combined_texts_split=combined_texts.split()
 
-    for word in combined_texts_split():
+    for word in combined_texts_split:
         if word!=TEXT_DIVIDING_LABEL and word not in SET_OF_APPEARING_WORDS:
             SET_OF_APPEARING_WORDS.add(word)    
             LIST_OF_APPEARING_WORD_TUPLES.append((word, 0))
@@ -398,13 +402,14 @@ def find_all_appearing_words(combined_texts):
     LIST_OF_APPEARING_WORD_TUPLES.sort()
 
 
+# Tested!
 def get_bag_of_words(text):
     global SET_OF_APPEARING_WORDS
-    word_value_pair_list=LIST_OF_APPEARING_WORD_TUPLES.copy()
+    word_value_pair_list=LIST_OF_APPEARING_WORD_TUPLES[:]
     words=text.split()
     for word in words:
         index_of_word=bisect.bisect_left(word_value_pair_list, (word, 0))
-        word_value_pair_list[index_of_word][1]+=1
+        word_value_pair_list[index_of_word]=(word_value_pair_list[index_of_word][0], word_value_pair_list[index_of_word][1]+1)
 
     return word_value_pair_list
 
@@ -445,6 +450,7 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     test_input_text=""
 
     # Get all training data text combined
+    print "Getting training data text..."
     f=open(training_case_file, 'r')
     current_line=f.readline()
     training_labels=[]
@@ -456,8 +462,10 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
         training_input_text+="%s\n%s\n" % (get_input_text_from_html_page(training_case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
     f.close()
+    training_input_text=training_input_text.lower()
 
     # Get all test data text combined
+    print "\nGetting test data text..."
     f=open(test_case_file, 'r')
     current_line=f.readline()
     test_labels=[]
@@ -466,14 +474,18 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
         test_case_url, test_label=current_line.rsplit(':', 1)
         test_labels.append(test_label.strip())
         test_case_urls.append(test_case_url)
-        test_input_text+="%s\n%s\n" % (get_input_text_from_html_page(training_case_url), TEXT_DIVIDING_LABEL)
+        test_input_text+="%s\n%s\n" % (get_input_text_from_html_page(test_case_url), TEXT_DIVIDING_LABEL)
         current_line=f.readline()
     f.close()
+    test_input_text=test_input_text.lower()
 
     # Get total bag of appearing words
     find_all_appearing_words(training_input_text+"\n"+test_input_text)
 
     # Get data features for training data
+    f=open('c.txt', 'w')
+    f.write(training_input_text)
+    f.close()
     labeled_training_input_text=get_input_text_with_pos(training_input_text)#.split("%s_CD" % TEXT_DIVIDING_LABEL)
     labeled_training_input_text=re.sub(r"%s_\S+" % TEXT_DIVIDING_LABEL, TEXT_DIVIDING_LABEL, labeled_training_input_text)
     labeled_training_input_texts=labeled_training_input_text.split(TEXT_DIVIDING_LABEL)
@@ -485,14 +497,14 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     del training_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
     del labeled_training_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
-    g=open(features_file, 'w')
+    g=open(training_features_file, 'w')
     for index in xrange(0, len(training_case_texts)):
         print "Forming training features: %.2f%%" % ((index*100.0)/len(case_texts))
         training_text=training_case_texts[index]
         labeled_training_text=labeled_training_input_texts[index]
         corresponding_url=training_case_urls[index]
         data_features_string=get_data_features_string(training_text, labeled_training_text, corresponding_url)
-        g.write("%s %s\n" % (labels.pop(0), data_features_string))
+        g.write("%s %s\n" % (training_labels.pop(0), data_features_string))
     g.close()
 
     # Get data features for test data now...
@@ -507,14 +519,14 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     del test_case_texts[-1] # Last "text example" in list just whitespace after last text dividing label
     del labeled_test_input_texts[-1] # Same thing with corresponding labeled version of last "text example"
 
-    g=open(features_file, 'w')
+    g=open(test_features_file, 'w')
     for index in xrange(0, len(test_case_texts)):
         print "Forming test features: %.2f%%" % ((index*100.0)/len(case_texts))
         test_text=test_case_texts[index]
         labeled_test_text=labeled_test_input_texts[index]
         corresponding_url=test_case_urls[index]
         data_features_string=get_data_features_string(test_text, labeled_test_text, corresponding_url)
-        g.write("%s %s\n" % (labels.pop(0), data_features_string))
+        g.write("%s %s\n" % (test_labels.pop(0), data_features_string))
     g.close()
 
 
@@ -600,14 +612,15 @@ def main():
     ALL_CASE_YEARS=get_list_of_case_years()
 
     # Form model using training data
-    form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
-    """training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
+    #form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
+    form_problem('a.txt', 'Training Data Features.txt', 'b.txt', 'Test Data Features.txt')
+    training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
     prob = liblinear.problem(training_labels, training_instances)
     model = liblinearutil.train(training_labels, training_instances, '-s 0')
 
     # Actually test algorithm on test data
     test_labels, test_instances = liblinearutil.svm_read_problem('Test Data Features.txt')
-    liblinearutil.predict(test_labels, test_instances, model, "-b 1")"""
+    liblinearutil.predict(test_labels, test_instances, model, "-b 1")
 
 
 if __name__=="__main__":
