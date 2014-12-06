@@ -126,13 +126,33 @@ def filter_html(page_html):
     filtered_html=re.sub(r"'\s+", " ", filtered_html)
 
     # Deal with special case of single/double quotes at beginning/end of html text (unlikely, but must be considered)
-    if filtered_html[0]=="'" or filtered_html[0]=='"':
+    if len(filtered_html)>0 and (filtered_html[0]=="'" or filtered_html[0]=='"'):
         filtered_html=filtered_html[1:]
-    if filtered_html[-1]=="'" or filtered_html[-1]=='"':
+    if len(filtered_html)>0 and (filtered_html[-1]=="'" or filtered_html[-1]=='"'):
         filtered_html=filtered_html[:-1]
 
+    # Periods are okay if "U.S" or "U.S.A" term used
+    filtered_html=filtered_html.replace(" U S A ", " U.S.A. ")
+    filtered_html=filtered_html.replace(" u s a ", " u.s.a. ")
+    filtered_html=filtered_html.replace(" U S ", " U.S. ")
+    filtered_html=filtered_html.replace(" u s ", " u.s. ")
+
     # Eliminate isolated numbers (to get rid of references) for analysis
-    filtered_html=re.sub(r"\s+\d+\s+", " ", filtered_html)
+    while filtered_html!=re.sub(r"\s\d+\s", " ", filtered_html):
+        filtered_html=re.sub(r"\s\d+\s", " ", filtered_html)
+
+    # Get rid of numbers at beginning and end of html text
+    if len(filtered_html)>0 and filtered_html[0].isdigit():
+        start_index=1
+        while start_index<len(filtered_html) and filtered_html[start_index].isdigit():
+            start_index+=1
+        filtered_html=filtered_html[start_index:]
+
+    if len(filtered_html)>0 and filtered_html[-1].isdigit():
+        finish_index=len(filtered_html)-2
+        while finish_index>=0 and not filtered_html[finish_index].isdigit():
+            finish_index-=1
+        filtered_html=filtered_html[:finish_index]
 
     filtered_html=filtered_html.strip()
     return filtered_html

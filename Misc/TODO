@@ -1,3 +1,1 @@
 deal with "\a" binary interpretation issue
-deal with "U.S." period issue, multiple isolated numbers issue
-suppress Java POS tagger output
