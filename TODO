@@ -1,2 +1,3 @@
-figure out how to integrate w/liblinear (& integrate in main algorithm)
-test/debug general algorithm in main method!
+deal with "\a" binary interpretation issue
+deal with "U.S." period issue, multiple isolated numbers issue
+suppress Java POS tagger output

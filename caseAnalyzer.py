@@ -1,6 +1,4 @@
 import bisect
-import liblinear
-import liblinearutil
 import math
 import os
 import random
@@ -602,14 +600,10 @@ def main():
     ALL_CASE_YEARS=get_list_of_case_years()
 
     # Form model using training data
-    form_problem('Training Cases.txt', 'Training Data Features.txt', 'Test Cases Labeled.txt', 'Test Data Features.txt')
-    training_labels, training_instances = liblinearutil.svm_read_problem('Training Data Features.txt')
-    prob = liblinear.problem(training_labels, training_instances)
-    model = liblinearutil.train(training_labels, training_instances, '-s 0')
-
-    # Actually test algorithm on test data
-    test_labels, test_instances = liblinearutil.svm_read_problem('Test Data Features.txt')
-    liblinearutil.predict(test_labels, test_instances, model, "-b 1")
+    #form_problem('Training Cases.txt', 'Training_Data_Features.txt', 'Test Cases Labeled.txt', 'Test_Data_Features.txt')
+    form_problem('a.txt', 'Training_Data_Features.txt', 'b.txt', 'Test_Data_Features.txt')
+    subprocess.check_call([os.path.join(os.getcwd(), 'execute_train.sh').replace(" ", "\ ")], shell=True)
+    subprocess.check_call([os.path.join(os.getcwd(), 'execute_test.sh').replace(" ", "\ ")], shell=True)
 
 
 if __name__=="__main__":
