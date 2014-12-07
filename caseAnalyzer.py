@@ -3,6 +3,7 @@ import math
 import os
 import random
 import re
+import stat
 import subprocess
 import urllib2
 
@@ -622,8 +623,11 @@ def main():
     # Form model using training data
     #form_problem('Training Cases.txt', 'Training_Data_Features.txt', 'Test Cases Labeled.txt', 'Test_Data_Features.txt')
     form_problem('a.txt', 'Training_Data_Features.txt', 'b.txt', 'Test_Data_Features.txt')
-    subprocess.check_call([os.path.join(os.getcwd(), 'execute_train.sh').replace(" ", "\ ")], shell=True)
-    subprocess.check_call([os.path.join(os.getcwd(), 'execute_test.sh').replace(" ", "\ ")], shell=True)
+
+    os.chmod('execute_train.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    os.chmod('execute_test.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    subprocess.call([os.path.join(os.getcwd(), 'execute_train.sh').replace(" ", "\ ")], shell=True)
+    subprocess.call([os.path.join(os.getcwd(), 'execute_test.sh').replace(" ", "\ ")], shell=True)
 
 
 if __name__=="__main__":
