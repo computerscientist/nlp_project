@@ -5,6 +5,7 @@ import random
 import re
 import stat
 import subprocess
+import sys
 import urllib2
 
 
@@ -147,8 +148,8 @@ def filter_html(page_html):
     filtered_html=filtered_html.replace(" u s ", " u.s. ")
 
     # Eliminate isolated numbers (to get rid of references) for analysis
-    while filtered_html!=re.sub(r"\s\d+\s", " ", filtered_html):
-        filtered_html=re.sub(r"\s\d+\s", " ", filtered_html)
+    while filtered_html!=re.sub(r"\d+", " ", filtered_html):
+        filtered_html=re.sub(r"\d+", " ", filtered_html)
 
     # Get rid of numbers at beginning and end of html text
     if len(filtered_html)>0 and filtered_html[0].isdigit():
@@ -403,7 +404,6 @@ def decide_additional_training_data_list(manual_train_data_file, url_file):
     return additional_train_data_urls
 
 
-# Tested!
 def find_all_appearing_words(combined_texts):
     global LIST_OF_APPEARING_WORD_TUPLES, SET_OF_APPEARING_WORDS, TEXT_DIVIDING_LABEL
     LIST_OF_APPEARING_WORD_TUPLES=[]
@@ -418,7 +418,6 @@ def find_all_appearing_words(combined_texts):
     LIST_OF_APPEARING_WORD_TUPLES.sort()
 
 
-# Tested!
 def get_bag_of_words(text):
     global SET_OF_APPEARING_WORDS
     word_value_pair_list=LIST_OF_APPEARING_WORD_TUPLES[:]
@@ -458,7 +457,8 @@ def filter_out_pos(tagged_text):
     return clean_text
 
 
-def form_problem(training_case_file, training_features_file, test_case_file, test_features_file):
+def form_problem(training_case_file, training_features_file, test_case_file,
+                 test_features_file, model='english-left3words-distsim.tagger'):
     global SET_OF_APPEARING_WORDS
     training_input_text=""
     test_input_text=""
@@ -506,7 +506,7 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     for index in xrange(0, len(training_case_texts)):
         print "Forming training features: %.2f%%" % ((index*100.0)/len(training_case_texts))
         training_text=training_case_texts[index]
-        labeled_training_text=get_input_text_with_pos(training_text)
+        labeled_training_text=get_input_text_with_pos(training_text, model)
         corresponding_url=training_case_urls[index]
         data_features_string=get_data_features_string(training_text, labeled_training_text, corresponding_url)
         g.write("%s %s\n" % (training_labels.pop(0), data_features_string))
@@ -522,7 +522,7 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     for index in xrange(0, len(test_case_texts)):
         print "Forming test features: %.2f%%" % ((index*100.0)/len(test_case_texts))
         test_text=test_case_texts[index]
-        labeled_test_text=get_input_text_with_pos(test_text)
+        labeled_test_text=get_input_text_with_pos(test_text, model)
         corresponding_url=test_case_urls[index]
         data_features_string=get_data_features_string(test_text, labeled_test_text, corresponding_url)
         g.write("%s %s\n" % (test_labels.pop(0), data_features_string))
@@ -582,7 +582,6 @@ def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     return data_features_string
 
 
-# Tested!
 def get_year_of_case(case_url):
     global ALL_CASE_YEARS, ALL_CASE_URLS
     return int(ALL_CASE_YEARS[ALL_CASE_URLS.index(case_url)])
@@ -604,14 +603,14 @@ def get_list_of_case_years():
     return year_list
 
 
-def main():
+# Runs the main routine. Can use 'english-bidirectional-distsim.tagger' in the place of the default model tagger
+def main(model='english-left3words-distsim.tagger'):
     global ALL_CASE_YEARS, ALL_CASE_URLS
     ALL_CASE_URLS=get_all_case_urls()
     ALL_CASE_YEARS=get_list_of_case_years()
 
-    # Form model using training data
-    form_problem('Training_Cases.txt', 'Training_Data_Features.txt', 'Test_Cases.txt', 'Test_Data_Features.txt')
-
+    # Create data files with case features, then do training and testing for analysis
+    form_problem('Training_Cases.txt', 'Training_Data_Features.txt', 'Test_Cases.txt', 'Test_Data_Features.txt', model)
     os.chmod('execute_train.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     os.chmod('execute_test.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     subprocess.call([os.path.join(os.getcwd(), 'execute_train.sh').replace(" ", "\ ")], shell=True)
@@ -619,4 +618,7 @@ def main():
 
 
 if __name__=="__main__":
-    main()
+    if len(sys.argv)>1:
+        main(sys.argv[1])
+    else:
+        main()
