@@ -106,7 +106,6 @@ rights_NNS of_IN search_NN
 rights_NNS of_IN seizing_VBG 
 rights_NNS of_IN seizure_NN 
 powers_NNS of_IN searching_VBG 
-powers_NNS of_IN search_NN 
 powers_NNS of_IN seizing_VBG 
 powers_NNS of_IN seizure_NN 
 the_DT right_NN of_IN women_NNS 

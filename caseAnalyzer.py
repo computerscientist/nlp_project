@@ -30,7 +30,7 @@ historical_relations_to_look_for=[("civil", "right"),
 
 
 key_words=["dissent",
-           "dissents"
+           "dissents",
            "reverse",
            "reverses",
            "revered",
@@ -42,7 +42,19 @@ key_words=["dissent",
            "agreed",
            "disagree",
            "disagrees",
-           "disagreed"]
+           "disagreed",
+           "opinion",
+           "opinions",
+           "sufficient",
+           "deny",
+           "denied",
+           "petition",
+           "petitioned",
+           "petitioner",
+           "respondent",
+           "appellee",
+           "appellant",
+           "plaintiff"]
 
 
 """
@@ -62,7 +74,6 @@ LIST_OF_APPEARING_WORD_TUPLES=None
 SET_OF_APPEARING_WORDS=None
 
 
-# Tested!
 def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_text):
     number_of_matching_grammatical_constructs=0
     labeled_grammatical_construct_list=labeled_grammatical_construct.split()
@@ -85,7 +96,6 @@ def get_number_of_grammatical_constructs(labeled_grammatical_construct, labeled_
     return number_of_matching_grammatical_constructs
 
 
-# Tested!
 def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_list, labeled_text_list):
     total_number_of_grammatical_constructs=0
     for labeled_grammatical_construct in labeled_grammatical_construct_list:
@@ -95,7 +105,6 @@ def get_total_number_of_grammatical_constructs(labeled_grammatical_construct_lis
     return total_number_of_grammatical_constructs
 
 
-# Tested!
 def get_labeled_grammatical_phrases(phrase_input_file):
     labeled_phrases=[]
     f=open(phrase_input_file, 'r')
@@ -109,7 +118,6 @@ def get_labeled_grammatical_phrases(phrase_input_file):
     return labeled_phrases
 
 
-# Tested!
 def filter_html(page_html):
     filtered_html=page_html
 
@@ -159,7 +167,6 @@ def filter_html(page_html):
     return filtered_html
 
 
-# Tested!
 def get_input_text_from_html_page(URL):
     print URL
     input_text=""
@@ -194,7 +201,6 @@ def get_input_text_from_html_page(URL):
     return input_text
 
 
-# Tested!
 def get_input_text_with_pos(input_text, model='english-left3words-distsim.tagger'):
     f=open('input_text.txt', 'w')
     f.write(input_text)
@@ -211,7 +217,6 @@ def get_input_text_with_pos(input_text, model='english-left3words-distsim.tagger
     return tagged_text
 
 
-# Tested!
 def get_number_of_key_word_appearances(input_text, key_word):
     words=input_text.split()
     number_of_appearances=0
@@ -223,7 +228,6 @@ def get_number_of_key_word_appearances(input_text, key_word):
     return number_of_appearances
 
 
-# Tested!
 def get_total_number_of_key_word_appearances(input_text):
     total_number_of_appearances=0
     for key_word in key_words:
@@ -232,7 +236,6 @@ def get_total_number_of_key_word_appearances(input_text):
     return total_number_of_appearances
 
 
-# Tested!
 def get_total_number_of_relations(input_text, max_distance_threshold=5):
     total_number_of_relations=0
     for relation in historical_relations_to_look_for:
@@ -241,7 +244,6 @@ def get_total_number_of_relations(input_text, max_distance_threshold=5):
     return total_number_of_relations
 
 
-# Tested!
 def get_number_of_specific_relations(relation, input_text, max_distance_threshold=5):
     number_of_relations=0
     split_text=input_text.split()
@@ -257,7 +259,6 @@ def get_number_of_specific_relations(relation, input_text, max_distance_threshol
     return number_of_relations
 
 
-# Tested!
 def get_variations(word):
     if word=="right" or word=="freedom":
         return ["right", "rights", "liberty", "liberties", "freedom",
@@ -327,7 +328,6 @@ def get_variations(word):
         return [word]
 
 
-# Tested!
 def get_variation_pairs(first_word, second_word):
     first_word_variations=get_variations(first_word)
     second_word_variations=get_variations(second_word)
@@ -340,7 +340,6 @@ def get_variation_pairs(first_word, second_word):
     return variation_pairs
 
 
-# Tested!
 def get_all_word_variants():
     word_list=["civil", "right", "worker", "woman", "environment", "regulate",
                "business", "criminal", "prayer", "school", "segregate", "race",
@@ -355,7 +354,6 @@ def get_all_word_variants():
     return word_variation_list
 
 
-# Tested!
 def decide_test_data_list(train_data_file, test_data_file):
     train_data_urls=[]
     f=open(train_data_file)
@@ -380,9 +378,8 @@ def decide_test_data_list(train_data_file, test_data_file):
 
 
 """
-Randomly decide additional training data other than that picked manually.
+Randomly decide additional training data other than that picked manually (if needed)
 """
-# Tested!
 def decide_additional_training_data_list(manual_train_data_file, url_file):
     manual_train_data_urls=[]
     f=open(manual_train_data_file)
@@ -433,7 +430,6 @@ def get_bag_of_words(text):
     return word_value_pair_list
 
 
-# Tested!
 def filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, threshold):
     filtered_word_value_pairs=dict()
     filtered_number_of_words=number_of_words
@@ -446,7 +442,6 @@ def filter_bag_of_words_by_threshold(word_value_pairs, number_of_words, threshol
     return filtered_number_of_words, filtered_word_value_pairs
 
 
-# Tested!
 def filter_out_pos(tagged_text):
     tagged_text_list=tagged_text.split()
     clean_text=""
@@ -502,10 +497,6 @@ def form_problem(training_case_file, training_features_file, test_case_file, tes
     find_all_appearing_words(training_input_text+"\n"+test_input_text)
 
     # Get data features for training data
-    f=open('c.txt', 'w')
-    f.write(training_input_text)
-    f.close()
-    
     training_case_texts=training_input_text.split(TEXT_DIVIDING_LABEL)
     for training_case_text in training_case_texts:
         training_case_text=training_case_text.strip()
@@ -554,15 +545,15 @@ def get_data_features_string(input_text, labeled_input_text, corresponding_url):
     data_features_string+="%d:%d " % (feature_number, total_number_of_grammatical_constructs)
     feature_number+=1
 
-    # Look at appearances of different key words as featurs
+    # Look at appearances of different key words as features (and give them extra weight)
     for key_word in key_words:
         number_of_key_word_appearances=get_number_of_key_word_appearances(input_text, key_word)
-        data_features_string+="%d:%d " % (feature_number, number_of_key_word_appearances)
+        data_features_string+="%d:%d " % (feature_number, number_of_key_word_appearances*99)
         feature_number+=1
 
     # Look at total number of key words as a feature
     total_number_of_key_words=get_total_number_of_key_word_appearances(input_text)
-    data_features_string+="%d:%d " % (feature_number, total_number_of_key_words)
+    data_features_string+="%d:%d " % (feature_number, total_number_of_key_words*500)
     feature_number+=1
 
     # Look at number of appearances of individual two-word relations
@@ -597,7 +588,6 @@ def get_year_of_case(case_url):
     return int(ALL_CASE_YEARS[ALL_CASE_URLS.index(case_url)])
 
 
-# Tested!
 def get_all_case_urls():
     f=open('dissent/urls.txt', 'r')
     url_list=f.read().split()
@@ -606,7 +596,6 @@ def get_all_case_urls():
     return url_list
 
 
-# Tested!
 def get_list_of_case_years():
     f=open('dissent/years.txt', 'r')
     year_list=f.read().split()
