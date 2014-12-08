@@ -621,8 +621,7 @@ def main():
     ALL_CASE_YEARS=get_list_of_case_years()
 
     # Form model using training data
-    #form_problem('Training Cases.txt', 'Training_Data_Features.txt', 'Test Cases Labeled.txt', 'Test_Data_Features.txt')
-    form_problem('a.txt', 'Training_Data_Features.txt', 'b.txt', 'Test_Data_Features.txt')
+    form_problem('Training_Cases.txt', 'Training_Data_Features.txt', 'Test_Cases.txt', 'Test_Data_Features.txt')
 
     os.chmod('execute_train.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     os.chmod('execute_test.sh', stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
