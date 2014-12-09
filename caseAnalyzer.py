@@ -194,7 +194,7 @@ def get_input_text_from_html_page(URL):
     for index in xrange(case_start, case_end):
         if page_html[index]=='<' and not inside_element:
             inside_element=True
-        elif page_html[index]=='>' and inside_element:
+        elif page_html[index]=='>':
             inside_element=False
         elif not inside_element:
             input_text+=page_html[index]
