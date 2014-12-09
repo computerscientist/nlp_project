@@ -128,7 +128,7 @@ def filter_html(page_html):
     filtered_html=filtered_html.replace('&nbsp;', ' ')
 
     # Eliminate punctuation and certain special characters
-    filtered_html=re.sub(r"[.!:;?(){}\[\],\|~_@^\\]", " ", filtered_html)
+    filtered_html=re.sub(r"[.!:;?(){}\[\],\|~_@^\\*]", " ", filtered_html)
 
     # Eliminate quotation marks
     filtered_html=re.sub(r'"', "", filtered_html)
